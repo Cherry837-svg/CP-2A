@@ -26,13 +26,14 @@
             text-align: center;
             position: relative;
             z-index: 10; 
+transform: translate3d(0, 0, 0);
         }
 
         .date-row {
-            color: #7fff00;
+            color: #00ff99;
             font-size: 2.2rem;
             font-weight: bold;
-            letter-spacing: 2px;
+            letter-spacing: 1px;
             margin-bottom: 15px;
             text-transform: uppercase;
             text-shadow: 0 0 15px rgba(127, 255, 0, 0.6), 
@@ -42,13 +43,13 @@
         .clock {
             font-size: 6rem; 
             font-weight: 800;
-            letter-spacing: 1px;
+            letter-spacing: 0.7px;
             transition: color 0.5s linear, text-shadow 0.4s linear; 
         }
 
         .battery-info {
-            color: #00ff00;
-            font-size: 1.2rem;
+            color: #00ffff;
+            font-size: 1.5rem;
             margin-top: 25px;
             font-weight: bold;
             font-family: sans-serif;
@@ -77,7 +78,7 @@
 <body>
 
     <div class="clock-container" id="interactive-zone">
-        <div id="date" class="date-row">ПТ | 00.00.0000</div>
+        <div id="date" class="date-row">ПТ : 00.00.0000</div>
         <div id="clock" class="clock">00:00</div>
         <div id="battery" class="battery-info">Запрос данных батареи...</div>
         <div class="status-indicators">
@@ -87,7 +88,7 @@
     </div>
 
     <script>
-        const daysOfWeek = ['ВС', 'ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ'];
+        const daysOfWeek = ['7-ВС', '1-ПН', '2-ВТ', '3-СР', '4-ЧТ', '5-ПТ', '6-СБ'];
 
         // --- Основные Часы ---
         function updateClock() {
@@ -104,7 +105,7 @@
             const monthNum = String(now.getMonth() + 1).padStart(2, '0');
             const yearNum = now.getFullYear();
             
-            document.getElementById('date').textContent = `${dayName} | ${dayNum}.${monthNum}.${yearNum}`;
+            document.getElementById('date').textContent = `${dayName} : ${dayNum}.${monthNum}.${yearNum}`;
         }
 
         // --- Цвет от Батареи ---
@@ -113,7 +114,7 @@
             const clockEl = document.getElementById('clock');
             const batteryEl = document.getElementById('battery');
 
-            batteryEl.textContent = `AKK=: ${Math.round(percent)}%`;
+            batteryEl.textContent = ` ${Math.round(percent)}_%`;
 
             const hue = batteryLevel * 270;
             let lightness = 50;
@@ -208,7 +209,7 @@
         }
 
         function setSleepAllowed() {
-            wakelockStatus.textContent = "💤 Сон разрешен";
+            wakelockStatus.textContent = "💤🟤 Сон разрешен";
             wakelockStatus.className = '';
         }
 
@@ -254,12 +255,4 @@
             }
         }
 
-        document.addEventListener('fullscreenchange', () => {
-            if (!document.fullscreenElement) {
-                fullscreenStatus.textContent = "🔍 Обычный режим";
-                fullscreenStatus.classList.remove('active-status');
-            }
-        });
-    </script>
-</body>
-</html>
+         document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement) { fullscreenStatus.textContent = "🔍 Обычный режим"; fullscreenStatus.classList.remove('active-status'); } }); // --- МИКРОСМЕЩЕНИЕ ПО ТРАЕКТОРИИ ВОСЬМЁРКИ --- const screenElement = document.getElementById('interactive-zone'); const screenMoveAmplitudeX = 20; const screenMoveAmplitudeY = 20; const screenMoveTime = 3000; function moveScreen() { const angle = (performance.now() / screenMoveTime) * Math.PI * 2; const x = screenMoveAmplitudeX * Math.sin(angle); const y = screenMoveAmplitudeY * Math.sin(2 * angle); screenElement.style.transform = `translate3d(${x}px, ${y}px, 0)`; requestAnimationFrame(moveScreen); } moveScreen(); </script> </body> </html> 
