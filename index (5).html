@@ -1,4 +1,4 @@
-﻿ <!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
@@ -26,7 +26,9 @@
             text-align: center;
             position: relative;
             z-index: 10; 
-transform: translate3d(0, 0, 0);
+            /* Добавлена плавная анимация, чтобы часы не дергались при смещении */
+            transition: transform 1.5s ease-in-out;
+            transform: translate3d(0px, 0px, 0px);
         }
 
         .date-row {
@@ -148,9 +150,31 @@ transform: translate3d(0, 0, 0);
             }, 100);
         }
 
-        // --- Управление засыпанием экрана (WakeLock + Логика предотвращения сна) ---
+        // --- ЗАЩИТА ОТ ВЫГОРАНИЯ (Микросмещение / Pixel Shift) ---
+        let burnInAngle = 0;
+        const maxBurnInShift = 25; // Смещение до 25 пикселей в любую сторону
+
+        function runPixelShift() {
+            const container = document.getElementById('interactive-zone');
+            
+            // Движение по круговой орбите, чтобы задействовать соседние диоды
+            burnInAngle += 0.4; 
+            
+            // Округляем до целых пикселей (Math.round), чтобы текст оставался четким и не мылился
+            const shiftX = Math.round(Math.cos(burnInAngle) * maxBurnInShift);
+            const shiftY = Math.round(Math.sin(burnInAngle) * maxBurnInShift);
+            
+            container.style.transform = `translate3d(${shiftX}px, ${shiftY}px, 0px)`;
+        }
+
+        // Смещаем экран каждые 60 секунд
+        setInterval(runPixelShift, 6000);
+        runPixelShift(); // Первое смещение сразу при загрузке
+
+
+        // --- Управление засыпанием экрана (WakeLock + Резерв) ---
         let wakeLock = null;
-        let fallbackInterval = null; // Для резервного метода
+        let fallbackInterval = null; 
         let lastTapTime = 0;
         let tapCount = 0;
         let tapTimeout;
@@ -162,9 +186,7 @@ transform: translate3d(0, 0, 0);
             const isInactive = (wakeLock === null && fallbackInterval === null);
 
             if (isInactive) {
-                // ВКЛЮЧАЕМ НЕГАСНУЩИЙ ЭКРАН
                 try {
-                    // Метод 1: Современный стандартный WakeLock API
                     if ('wakeLock' in navigator) {
                         wakeLock = await navigator.wakeLock.request('screen');
                         wakeLock.addEventListener('release', () => {
@@ -178,19 +200,16 @@ transform: translate3d(0, 0, 0);
                     }
                     throw new Error("Не поддерживается");
                 } catch (err) {
-                    console.log("Основной WakeLock недоступен, включен резервный метод симуляции активности.");
-                    
-                    // Метод 2: Резервный (Фейковое микро-изменение хэша/перерисовки для обмана таймера сна ОС)
+                    console.log("Основной WakeLock недоступен, включен резервный метод.");
                     if (fallbackInterval === null) {
                         fallbackInterval = setInterval(() => {
-                            window.location.href = window.location.href; // Имитация активности окна
+                            window.location.href = window.location.href; 
                             window.history.replaceState(null, null, window.location.pathname);
-                        }, 15000); // Раз в 15 секунд дергаем страницу для сброса таймера сна
+                        }, 15000); 
                     }
                     setSleepBlocked();
                 }
             } else {
-                // ВЫКЛЮЧАЕМ НЕГАСНУЩИЙ ЭКРАН (Разрешаем сон)
                 if (wakeLock !== null) {
                     await wakeLock.release();
                     wakeLock = null;
@@ -209,14 +228,25 @@ transform: translate3d(0, 0, 0);
         }
 
         function setSleepAllowed() {
-            wakelockStatus.textContent = "💤🟤 Сон разрешен";
+            wakelockStatus.textContent = "💤 Сон разрешен";
             wakelockStatus.className = '';
         }
 
-        // --- Обработка Тапов ---
+        // --- Восстановленная обработка тапов и Полноэкранный режим ---
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen()
+                    .then(() => { fullscreenStatus.textContent = "📺 Полный экран"; })
+                    .catch(err => console.log(err));
+            } else {
+                document.exitFullscreen()
+                    .then(() => { fullscreenStatus.textContent = "🔍 Обычный режим"; });
+            }
+        }
+
         function handleTap(e) {
             const currentTime = new Date().getTime();
-            const tapDelay = 280; 
+            const tapDelay = 300; 
 
             if (currentTime - lastTapTime < tapDelay) {
                 tapCount++;
@@ -225,34 +255,21 @@ transform: translate3d(0, 0, 0);
             }
             
             lastTapTime = currentTime;
-            clearTimeout(tapTimeout);
 
+            clearTimeout(tapTimeout);
+            
+            // Если двойной тап — переключаем WakeLock, если тройной — полный экран
             tapTimeout = setTimeout(() => {
                 if (tapCount === 2) {
                     toggleWakeLock();
-                } else if (tapCount >= 3) {
+                } else if (tapCount === 3) {
                     toggleFullscreen();
                 }
                 tapCount = 0;
             }, tapDelay);
         }
 
-        document.addEventListener('click', handleTap); 
-
-        // --- Полноэкранный режим ---
-        function toggleFullscreen() {
-            if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen()
-                    .then(() => {
-                        fullscreenStatus.textContent = "📺 ПОЛНЫЙ ЭКРАН";
-                        fullscreenStatus.classList.add('active-status');
-                    })
-                    .catch(err => console.log(err));
-            } else {
-                document.exitFullscreen();
-                fullscreenStatus.textContent = "🔍 Обычный режим";
-                fullscreenStatus.classList.remove('active-status');
-            }
-        }
-
-         document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement) { fullscreenStatus.textContent = "🔍 Обычный режим"; fullscreenStatus.classList.remove('active-status'); } }); // --- МИКРОСМЕЩЕНИЕ ПО ТРАЕКТОРИИ ВОСЬМЁРКИ --- const screenElement = document.getElementById('interactive-zone'); const screenMoveAmplitudeX = 20; const screenMoveAmplitudeY = 20; const screenMoveTime = 6000; function moveScreen() { const angle = (performance.now() / screenMoveTime) * Math.PI * 2; const x = screenMoveAmplitudeX * Math.sin(angle); const y = screenMoveAmplitudeY * Math.sin(2 * angle); screenElement.style.transform = `translate3d(${x}px, ${y}px, 0)`; requestAnimationFrame(moveScreen); } moveScreen(); </script> </body> </html> 
+        document.getElementById('interactive-zone').addEventListener('click', handleTap);
+    </script>
+</body>
+</html>
